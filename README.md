@@ -1,4 +1,4 @@
-# Kitsu Project Management System
+# VFX Project Management System
 
 A comprehensive project management system for animation and VFX studios, built with React frontend and Python Flask backend.
 
