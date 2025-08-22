@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from models import Project, Sequence, Package, Shot, Task, Department, User, Version
+from models import Project, Sequence, Package, Shot, Task, Department, User, Version, InternalVersion
 from schemas import (
     ProjectCreate, SequenceCreate, PackageCreate, ShotCreate, 
-    TaskCreate, DepartmentCreate, UserCreate, VersionCreate
+    TaskCreate, DepartmentCreate, UserCreate, VersionCreate, InternalVersionCreate
 )
 
 # Project CRUD operations
@@ -108,6 +108,99 @@ def create_version(db: Session, version: VersionCreate):
 
 def get_versions(db: Session, task_id: int):
     return db.query(Version).filter(Version.task_id == task_id).order_by(Version.created_at.desc()).all()
+
+# Enhanced Task CRUD operations
+def create_task_with_version(db: Session, task: TaskCreate, created_by: Optional[int] = None):
+    """Create a task and automatically create the first version (v001)"""
+    db_task = Task(**task.dict())
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    
+    # Create the first version automatically
+    first_version = Version(
+        version_number="v001",
+        task_id=db_task.id,
+        status="work_in_progress",
+        created_by=created_by
+    )
+    db.add(first_version)
+    db.commit()
+    db.refresh(first_version)
+    
+    return db_task
+
+def get_tasks_by_shot_and_department(db: Session, shot_id: int, department_id: Optional[int] = None):
+    """Get tasks grouped by shot and department for hierarchical display"""
+    query = db.query(Task).filter(Task.shot_id == shot_id)
+    if department_id:
+        query = query.filter(Task.department_id == department_id)
+    return query.order_by(Task.department_id, Task.created_at).all()
+
+def create_new_version(db: Session, task_id: int, created_by: Optional[int] = None):
+    """Create a new version for an existing task (v002, v003, etc.)"""
+    # Get the latest version number
+    latest_version = db.query(Version).filter(Version.task_id == task_id).order_by(Version.version_number.desc()).first()
+    
+    if latest_version:
+        # Extract number from version (e.g., "v001" -> 1)
+        version_num = int(latest_version.version_number[1:]) + 1
+        new_version_number = f"v{version_num:03d}"
+    else:
+        new_version_number = "v001"
+    
+    new_version = Version(
+        version_number=new_version_number,
+        task_id=task_id,
+        status="work_in_progress",
+        created_by=created_by
+    )
+    db.add(new_version)
+    db.commit()
+    db.refresh(new_version)
+    
+    # Update task's current version
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task:
+        task.current_version = new_version_number
+        db.commit()
+    
+    return new_version
+
+# Internal Version CRUD operations
+def create_internal_version(db: Session, internal_version: InternalVersionCreate):
+    db_internal_version = InternalVersion(**internal_version.dict())
+    db.add(db_internal_version)
+    db.commit()
+    db.refresh(db_internal_version)
+    return db_internal_version
+
+def get_internal_versions(db: Session, version_id: int):
+    return db.query(InternalVersion).filter(InternalVersion.version_id == version_id).order_by(InternalVersion.created_at.desc()).all()
+
+def create_new_internal_version(db: Session, version_id: int, created_by: Optional[int] = None):
+    """Create a new internal version (E001, E002, etc.)"""
+    # Get the latest internal version number
+    latest_internal = db.query(InternalVersion).filter(InternalVersion.version_id == version_id).order_by(InternalVersion.internal_version_number.desc()).first()
+    
+    if latest_internal:
+        # Extract number from internal version (e.g., "E001" -> 1)
+        internal_num = int(latest_internal.internal_version_number[1:]) + 1
+        new_internal_number = f"E{internal_num:03d}"
+    else:
+        new_internal_number = "E001"
+    
+    new_internal_version = InternalVersion(
+        internal_version_number=new_internal_number,
+        version_id=version_id,
+        status="work_in_progress",
+        created_by=created_by
+    )
+    db.add(new_internal_version)
+    db.commit()
+    db.refresh(new_internal_version)
+    
+    return new_internal_version
 
 # Initialize default departments
 def init_default_departments(db: Session):

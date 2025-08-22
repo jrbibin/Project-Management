@@ -151,6 +151,9 @@ class TaskBase(BaseModel):
     due_date: Optional[datetime] = None
     completed_date: Optional[datetime] = None
     current_version: str = "v001"
+    approved_bid_days: float = 1.0
+    actual_bid_days: float = 0.0
+    eta_date: Optional[datetime] = None
 
 class TaskCreate(TaskBase):
     pass
@@ -177,6 +180,26 @@ class VersionCreate(VersionBase):
     pass
 
 class VersionResponse(VersionBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Internal Version schemas
+class InternalVersionBase(BaseModel):
+    internal_version_number: str = Field(..., min_length=1, max_length=20)
+    version_id: int
+    file_path: Optional[str] = None
+    thumbnail_path: Optional[str] = None
+    notes: Optional[str] = None
+    status: str = "work_in_progress"
+    created_by: Optional[int] = None
+
+class InternalVersionCreate(InternalVersionBase):
+    pass
+
+class InternalVersionResponse(InternalVersionBase):
     id: int
     created_at: datetime
     

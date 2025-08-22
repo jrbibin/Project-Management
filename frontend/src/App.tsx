@@ -16,6 +16,7 @@ import {
   FolderOpen as ProjectIcon,
   CameraAlt as ShotsIcon,
   Assignment as TaskIcon,
+  AccountTree as HierarchicalIcon,
   Help as QueriesIcon,
   Business as ClientsIcon,
   Archive as ArchiveIcon,
@@ -34,6 +35,7 @@ import ProjectDashboard from './components/ProjectDashboard';
 import ProjectView from './components/ProjectView';
 import ShotsView from './components/ShotsView';
 import TaskView from './components/TaskView';
+import HierarchicalTaskView from './components/HierarchicalTaskView';
 import QueriesView from './components/QueriesView';
 import ClientsView from './components/ClientsView';
 import ArchiveView from './components/ArchiveView';
@@ -90,12 +92,13 @@ function NavigationTabs() {
     else if (path === '/project') setValue(1);
     else if (path === '/shots') setValue(2);
     else if (path === '/tasks') setValue(3);
-    else if (path === '/queries') setValue(4);
-    else if (path === '/clients') setValue(5);
-    else if (path === '/archive') setValue(6);
-    else if (path === '/logs') setValue(7);
-    else if (path === '/users') setValue(8);
-    else if (path === '/settings') setValue(9);
+    else if (path === '/hierarchical-tasks') setValue(4);
+    else if (path === '/queries') setValue(5);
+    else if (path === '/clients') setValue(6);
+    else if (path === '/archive') setValue(7);
+    else if (path === '/logs') setValue(8);
+    else if (path === '/users') setValue(9);
+    else if (path === '/settings') setValue(10);
   }, [location]);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -132,6 +135,12 @@ function NavigationTabs() {
         label="Tasks"
         component={Link}
         to="/tasks"
+      />
+      <Tab
+        icon={<HierarchicalIcon />}
+        label="Hierarchical Tasks"
+        component={Link}
+        to="/hierarchical-tasks"
       />
       <Tab
         icon={<QueriesIcon />}
@@ -217,6 +226,7 @@ function AppContent() {
           <Route path="/project" element={<ProjectView />} />
           <Route path="/shots" element={<ShotsView />} />
           <Route path="/tasks" element={<TaskView />} />
+          <Route path="/hierarchical-tasks" element={<HierarchicalTaskView />} />
           <Route path="/queries" element={<QueriesView />} />
           <Route path="/clients" element={<ClientsView />} />
           <Route path="/archive" element={<ArchiveView />} />

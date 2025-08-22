@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import uvicorn
@@ -15,15 +17,19 @@ from schemas import (
     ShotCreate, ShotResponse,
     TaskCreate, TaskResponse,
     DepartmentResponse,
-    UserResponse
+    UserResponse,
+    VersionCreate, VersionResponse,
+    InternalVersionCreate, InternalVersionResponse
 )
 from crud import (
     create_project, get_projects,
     create_sequence, get_sequences,
     create_package, get_packages,
     create_shot, get_shots,
-    create_task, get_tasks,
-    get_departments, get_users
+    create_task, get_tasks, create_task_with_version, get_tasks_by_shot_and_department,
+    get_departments, get_users,
+    create_version, get_versions, create_new_version,
+    create_internal_version, get_internal_versions, create_new_internal_version
 )
 
 # Create database tables
@@ -43,6 +49,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"DEBUG: Validation error: {exc.errors()}")
+    print(f"DEBUG: Request body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": str(await request.body())}
+    )
 
 security = HTTPBearer()
 
@@ -95,6 +110,52 @@ async def create_task_endpoint(task: TaskCreate, db: Session = Depends(get_db)):
 @app.get("/api/tasks", response_model=List[TaskResponse])
 async def get_tasks_endpoint(shot_id: Optional[int] = None, db: Session = Depends(get_db)):
     return get_tasks(db, shot_id)
+
+# Enhanced task endpoints
+@app.post("/api/tasks/with-version", response_model=TaskResponse)
+async def create_task_with_version_endpoint(task: TaskCreate, created_by: Optional[int] = None, db: Session = Depends(get_db)):
+    """Create a task with automatic first version (v001)"""
+    print(f"DEBUG: Received task data: {task.dict()}")
+    try:
+        result = create_task_with_version(db, task, created_by)
+        print(f"DEBUG: Task created successfully: {result.id}")
+        return result
+    except Exception as e:
+        print(f"DEBUG: Error creating task: {str(e)}")
+        raise e
+
+@app.get("/api/tasks/by-shot/{shot_id}", response_model=List[TaskResponse])
+async def get_tasks_by_shot_endpoint(shot_id: int, department_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Get tasks grouped by shot and department for hierarchical display"""
+    return get_tasks_by_shot_and_department(db, shot_id, department_id)
+
+# Version endpoints
+@app.post("/api/versions", response_model=VersionResponse)
+async def create_version_endpoint(version: VersionCreate, db: Session = Depends(get_db)):
+    return create_version(db, version)
+
+@app.get("/api/versions/task/{task_id}", response_model=List[VersionResponse])
+async def get_versions_endpoint(task_id: int, db: Session = Depends(get_db)):
+    return get_versions(db, task_id)
+
+@app.post("/api/versions/new/{task_id}", response_model=VersionResponse)
+async def create_new_version_endpoint(task_id: int, created_by: Optional[int] = None, db: Session = Depends(get_db)):
+    """Create a new version for an existing task (v002, v003, etc.)"""
+    return create_new_version(db, task_id, created_by)
+
+# Internal version endpoints
+@app.post("/api/internal-versions", response_model=InternalVersionResponse)
+async def create_internal_version_endpoint(internal_version: InternalVersionCreate, db: Session = Depends(get_db)):
+    return create_internal_version(db, internal_version)
+
+@app.get("/api/internal-versions/version/{version_id}", response_model=List[InternalVersionResponse])
+async def get_internal_versions_endpoint(version_id: int, db: Session = Depends(get_db)):
+    return get_internal_versions(db, version_id)
+
+@app.post("/api/internal-versions/new/{version_id}", response_model=InternalVersionResponse)
+async def create_new_internal_version_endpoint(version_id: int, created_by: Optional[int] = None, db: Session = Depends(get_db)):
+    """Create a new internal version (E001, E002, etc.)"""
+    return create_new_internal_version(db, version_id, created_by)
 
 # Departments endpoints
 @app.get("/api/departments", response_model=List[DepartmentResponse])

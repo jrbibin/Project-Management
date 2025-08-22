@@ -134,6 +134,9 @@ class Task(Base):
     due_date = Column(DateTime)
     completed_date = Column(DateTime)
     current_version = Column(String(20), default="v001")
+    approved_bid_days = Column(Float, default=1.0)
+    actual_bid_days = Column(Float, default=0.0)
+    eta_date = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
@@ -141,7 +144,7 @@ class Task(Base):
     shot = relationship("Shot", back_populates="tasks")
     department = relationship("Department", back_populates="tasks")
     assignee = relationship("User", back_populates="assigned_tasks")
-    versions = relationship("Version", back_populates="task", cascade="all, delete-orphan")
+    versions = relationship("Version", back_populates="task", cascade="all, delete-orphan", order_by="Version.version_number")
 
 class Version(Base):
     __tablename__ = "versions"
@@ -158,4 +161,22 @@ class Version(Base):
     
     # Relationships
     task = relationship("Task", back_populates="versions")
+    creator = relationship("User")
+    internal_versions = relationship("InternalVersion", back_populates="version", cascade="all, delete-orphan")
+
+class InternalVersion(Base):
+    __tablename__ = "internal_versions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    internal_version_number = Column(String(20), nullable=False)  # E001, E002, etc.
+    version_id = Column(Integer, ForeignKey("versions.id"), nullable=False)
+    file_path = Column(String(500))
+    thumbnail_path = Column(String(500))
+    notes = Column(Text)
+    status = Column(String(50), default="work_in_progress")
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, server_default=func.now())
+    
+    # Relationships
+    version = relationship("Version", back_populates="internal_versions")
     creator = relationship("User")
